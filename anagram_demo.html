@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アナグラム脱出</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            color: white;
+        }
+
+        /* ゲーム画面（スマホ比率固定） */
+        #game {
+            aspect-ratio: 9 / 19.5;
+            height: 100vh;
+            max-height: 800px;
+            width: auto;
+
+            background: #333;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 部屋 */
+        #room {
+            flex: 4;
+            background: #444;
+            position: relative;
+        }
+
+        .dark {
+            background: #111 !important;
+        }
+
+        /* ドア */
+        #door {
+            width: 80px;
+            height: 140px;
+            background: brown;
+            position: absolute;
+            right: 20px;
+            bottom: 0;
+        }
+
+        /* ノブ */
+        #door.knob::after {
+            content: "";
+            width: 10px;
+            height: 10px;
+            background: gold;
+            border-radius: 50%;
+            position: absolute;
+            right: 10px;
+            top: 70px;
+        }
+
+        /* 箱 */
+        #box {
+            width: 60px;
+            height: 40px;
+            background: #111;
+            position: absolute;
+            left: 20px;
+            bottom: 0;
+        }
+
+        /* ログ */
+        #log {
+            flex: 2;
+            overflow: auto;
+            background: #111;
+            padding: 5px;
+            font-size: 14px;
+        }
+
+        /* コマンド */
+        #commands {
+            flex: 2;
+            display: flex;
+            flex-wrap: wrap;
+            padding: 5px;
+        }
+
+        /* 作成中 */
+        #current {
+            flex: 1;
+            text-align: center;
+            font-size: 20px;
+            padding: 5px;
+        }
+
+        /* 操作 */
+        .controls {
+            flex: 1;
+            text-align: center;
+        }
+
+        /* 文字 */
+        #letters {
+            flex: 3;
+            display: flex;
+            flex-wrap: wrap;
+            overflow: auto;
+            background: #111;
+            padding: 5px;
+        }
+
+        /* ボタン */
+        button {
+            margin: 4px;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+        }
+
+        .cmd {
+            background: #4caf50;
+            color: white;
+        }
+
+        .letter {
+            background: #2196f3;
+            color: white;
+        }
+
+        .action {
+            background: #ff9800;
+            color: black;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game">
+
+        <div id="room" class="dark">
+            <div id="door"></div>
+            <div id="box"></div>
+        </div>
+
+        <div id="log"></div>
+
+        <div id="commands"></div>
+
+        <div id="current"></div>
+
+        <div class="controls">
+            <button id="registerBtn" class="action">登録</button>
+            <button id="clearBtn" class="action">クリア</button>
+        </div>
+
+        <div id="letters"></div>
+
+    </div>
+
+    <script>
+
+        // 状態
+        let state = {
+            light: false,
+            doorHasKnob: false,
+            gotDo: false,
+            gotNo: false,
+            gotBu: false
+        };
+
+        // 所持文字（り追加済み）
+        let letters = new Set(["あ", "う", "か", "け", "こ", "つ", "と", "は", "み", "る", "り"]);
+
+        let commands = new Set();
+        let current = "";
+
+        // ログ
+        function log(text) {
+            const logDiv = document.getElementById("log");
+            logDiv.innerHTML += text + "<br>";
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // 描画
+        function render() {
+
+            const room = document.getElementById("room");
+            room.classList.toggle("dark", !state.light);
+
+            const door = document.getElementById("door");
+            door.classList.toggle("knob", state.doorHasKnob);
+
+            // 文字
+            const lettersDiv = document.getElementById("letters");
+            lettersDiv.innerHTML = "";
+            [...letters].sort().forEach(c => {
+                const btn = document.createElement("button");
+                btn.innerText = c;
+                btn.className = "letter";
+                btn.onclick = () => addLetter(c);
+                lettersDiv.appendChild(btn);
+            });
+
+            // コマンド
+            const cmdDiv = document.getElementById("commands");
+            cmdDiv.innerHTML = "";
+            commands.forEach(c => {
+                const btn = document.createElement("button");
+                btn.innerText = c;
+                btn.className = "cmd";
+                btn.onclick = () => useCommand(c);
+                cmdDiv.appendChild(btn);
+            });
+
+            document.getElementById("current").innerText = current;
+        }
+
+        // 文字操作
+        function addLetter(c) {
+            current += c;
+            render();
+        }
+
+        function clearWord() {
+            current = "";
+            render();
+        }
+
+        // 登録
+        function registerWord() {
+            const valid = ["あかり", "みる", "あける", "とる", "つかう", "どあのぶ"];
+
+            if (valid.includes(current)) {
+                commands.add(current);
+                log("「" + current + "」を登録した");
+            } else {
+                log("何も起きない");
+            }
+
+            current = "";
+            render();
+        }
+
+        // コマンド処理
+        function useCommand(cmd) {
+
+            if (cmd === "あかり") {
+                state.light = true;
+                log("明かりをつけた");
+            }
+
+            if (cmd === "みる") {
+                if (!state.light) {
+                    log("暗くて見えない");
+                } else {
+                    log("ドアと箱がある");
+
+                    if (!state.gotDo) {
+                        log("ドアに「ど」がある");
+                        letters.add("ど");
+                        state.gotDo = true;
+                    }
+
+                    if (!state.gotNo) {
+                        log("床に「の」がある");
+                        letters.add("の");
+                        state.gotNo = true;
+                    }
+                }
+            }
+
+            if (cmd === "あける") {
+                if (!state.light) {
+                    log("暗くて無理だ");
+                    return;
+                }
+
+                if (!state.gotBu) {
+                    log("箱を開けた。「ぶ」を入手");
+                    letters.add("ぶ");
+                    state.gotBu = true;
+                    return;
+                }
+
+                if (state.doorHasKnob) {
+                    log("ドアが開いた！脱出成功！");
+                } else {
+                    log("ノブがない…");
+                }
+            }
+
+            if (cmd === "どあのぶ") {
+                if (state.gotDo && state.gotNo && state.gotBu) {
+                    state.doorHasKnob = true;
+                    log("ドアにノブがついた！");
+                } else {
+                    log("まだ作れない");
+                }
+            }
+
+            render();
+        }
+
+        // クリック
+        document.getElementById("door").onclick = () => log("ドアだ");
+        document.getElementById("box").onclick = () => log("箱だ");
+
+        // ボタン
+        document.getElementById("registerBtn").onclick = registerWord;
+        document.getElementById("clearBtn").onclick = clearWord;
+
+        // 初期
+        log("真っ暗な部屋だ…");
+        render();
+
+    </script>
+
+</body>
+
+</html>
